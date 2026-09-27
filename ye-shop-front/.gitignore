@@ -1,0 +1,16 @@
+unpackage/
+.DS_Store
+.hbuilderx/
+
+.claude/
+# uniapp
+node_modules
+unpackage
+dist
+
+# env密钥
+.env
+.env.local
+
+# vscode本地配置
+.vscode/
