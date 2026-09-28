@@ -1,5 +1,5 @@
 {
-    "name" : "ye-shop-front",
+    "name" : "",
     "appid" : "",
     "description" : "",
     "versionName" : "1.0.0",
@@ -64,6 +64,9 @@
     },
     "mp-toutiao" : {
         "usingComponents" : true
+    },
+    "uniStatistics": {  
+        "enable": false
     },
     "vueVersion" : "3"
 }
