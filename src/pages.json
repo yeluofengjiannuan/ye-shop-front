@@ -1,15 +1,18 @@
 {
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+	// pages 数组的第一项即为应用启动页（首页），所以首页必须放在首位
+	"pages": [
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "uni-app"
+				// 关闭原生导航栏，改用页面内自定义的固定导航栏，避免出现两条
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "叶选商城"
 			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app",
+		"navigationBarTitleText": "叶选商城",
 		"navigationBarBackgroundColor": "#F8F8F8",
 		"backgroundColor": "#F8F8F8"
 	}
