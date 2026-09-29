@@ -8,8 +8,25 @@
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "叶选商城"
 			}
+		},
+		{
+			// 登录页：不进 tabBar，也不该被未登录拦截器挡住（见 App.vue 白名单）
+			"path": "pages/login/login",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
+			"path": "pages/profile/profile",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "个人中心"
+			}
 		}
 	],
+	// 说明：本项目当前没有 tabBar。
+	// 因此跳首页只能用 uni.reLaunch / uni.redirectTo，不能用 uni.switchTab（它只认 tabBar 页面）。
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "叶选商城",

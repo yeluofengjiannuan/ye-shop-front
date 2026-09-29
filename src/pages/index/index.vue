@@ -17,6 +17,14 @@
 						</view>
 					</view>
 
+					<!-- 个人中心 -->
+					<view class="nav-btn" @click="onProfile">
+						<view class="icon-user">
+							<view class="icon-user__head"></view>
+							<view class="icon-user__body"></view>
+						</view>
+					</view>
+
 					<!-- 购物车（带角标） -->
 					<view class="nav-btn" @click="onCart">
 						<view class="icon-cart">
@@ -96,6 +104,8 @@
 </template>
 
 <script>
+import { useUserStore } from '@/store/modules/user'
+
 export default {
 	data() {
 		return {
@@ -164,6 +174,15 @@ export default {
 		onCart() {
 			// TODO: 购物车页建好后改成 uni.navigateTo({ url: '/pages/cart/cart' })
 			uni.showToast({ title: `购物车共 ${this.cartCount} 件商品`, icon: 'none' })
+		},
+		onProfile() {
+			const userStore = useUserStore()
+			// 正常情况下没登录根本进不来（App.vue 里有路由拦截），这里只是兜底
+			if (userStore.isLogin) {
+				uni.navigateTo({ url: '/pages/profile/profile' })
+			} else {
+				uni.navigateTo({ url: '/pages/login/login' })
+			}
 		},
 		onCategory(item) {
 			uni.showToast({ title: item.label, icon: 'none' })
@@ -345,6 +364,36 @@ page {
 
 .icon-cart__wheel--r {
 	left: 36rpx;
+}
+
+/* 个人中心图标 */
+.icon-user {
+	position: relative;
+	width: 40rpx;
+	height: 40rpx;
+}
+
+.icon-user__head {
+	position: absolute;
+	top: 3rpx;
+	left: 10rpx;
+	width: 20rpx;
+	height: 20rpx;
+	box-sizing: border-box;
+	border: 3rpx solid #333333;
+	border-radius: 50%;
+}
+
+.icon-user__body {
+	position: absolute;
+	bottom: 2rpx;
+	left: 3rpx;
+	width: 34rpx;
+	height: 17rpx;
+	box-sizing: border-box;
+	border: 3rpx solid #333333;
+	border-bottom: none;
+	border-radius: 18rpx 18rpx 0 0;
 }
 
 /* ---------- 轮播图 ---------- */
