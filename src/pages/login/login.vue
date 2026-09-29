@@ -41,17 +41,13 @@
 			<view class="submit" :class="{ 'submit--loading': loading }" @click="handleLogin">
 				<text class="submit__text">{{ loading ? '登录中…' : '登 录' }}</text>
 			</view>
-
-			<text v-if="USE_MOCK" class="tip">
-				演示模式：账号密码任意填即可登录；账号填 error 可模拟失败
-			</text>
 		</view>
 	</view>
 </template>
 
 <script>
 import { useUserStore } from '@/store/modules/user'
-import { userApi, USE_MOCK } from '@/utils/api'
+import { userApi } from '@/utils/api'
 
 export default {
 	data() {
@@ -60,7 +56,6 @@ export default {
 			username: '',
 			password: '',
 			loading: false,
-			USE_MOCK,
 		}
 	},
 	onLoad() {
@@ -84,6 +79,8 @@ export default {
 
 			this.loading = true
 			try {
+				// request.js 已做统一封装：成功时直接拿到 data
+				// 即 { accessToken, refreshToken, userInfo }
 				const data = await userApi.loginByAccount({
 					username,
 					password: this.password,
@@ -217,14 +214,5 @@ page {
 	font-weight: bold;
 	color: #ffffff;
 	letter-spacing: 4rpx;
-}
-
-.tip {
-	display: block;
-	margin-top: 32rpx;
-	font-size: 22rpx;
-	line-height: 34rpx;
-	color: #999999;
-	text-align: center;
 }
 </style>

@@ -26,6 +26,30 @@ export const useUserStore = defineStore('user', {
       uni.setStorageSync('userInfo', this.userInfo);
       if (typeof uni.$emit === 'function') uni.$emit('userLogin', this.userInfo);
     },
+
+    /**
+     * 刷新令牌后更新双 Token，不碰 userInfo。
+     * 刷新接口只返回 { accessToken, refreshToken }，若复用 setUserInfo，
+     * 其内部的 `userInfo.userInfo || userData` 会把 userInfo 覆盖成 token 对象。
+     */
+    setTokens({ accessToken, refreshToken } = {}) {
+      if (accessToken) {
+        this.token = accessToken;
+        uni.setStorageSync('token', accessToken);
+      }
+      if (refreshToken) {
+        this.refreshToken = refreshToken;
+        uni.setStorageSync('refreshToken', refreshToken);
+      }
+      this.isLogin = !!this.token;
+    },
+
+    /** 单独更新用户资料（如拉取用户详情后），不动 token */
+    setProfile(info) {
+      this.userInfo = info || {};
+      uni.setStorageSync('userInfo', this.userInfo);
+    },
+
     async logout() {
       // 清空状态和缓存
       this.token = '';
