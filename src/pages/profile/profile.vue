@@ -1,6 +1,19 @@
 <template>
 	<view class="page">
-		<view :style="{ height: statusBarHeight + 'px' }"></view>
+		<!-- 子页面头部。本页是 navigationStyle: custom，原生导航栏（含返回箭头）被去掉了，
+		     必须自己提供返回入口，否则在小程序/App 上进得来出不去 -->
+		<view class="header" :style="{ paddingTop: statusBarHeight + 'px' }">
+			<view class="header__inner">
+				<view class="back" @click="goBack">
+					<view class="icon-back">
+						<view class="icon-back__head"></view>
+						<view class="icon-back__shaft"></view>
+					</view>
+				</view>
+				<text class="header__title">个人中心</text>
+				<view class="header__placeholder"></view>
+			</view>
+		</view>
 
 		<!-- 用户信息 -->
 		<view class="hero">
@@ -91,6 +104,15 @@ export default {
 		this.loadDetail()
 	},
 	methods: {
+		goBack() {
+			// 栈里只有本页（冷启动直接进来）时无处可退，回首页
+			const pages = getCurrentPages()
+			if (pages.length > 1) {
+				uni.navigateBack()
+				return
+			}
+			uni.reLaunch({ url: '/pages/index/index' })
+		},
 		/** 拉取用户详情刷新 store。失败时保留缓存数据，只提示一次 */
 		async loadDetail() {
 			try {
@@ -133,6 +155,70 @@ page {
 	min-height: 100vh;
 	padding: 0 24rpx 40rpx;
 	box-sizing: border-box;
+}
+
+/* ---------- 子页面头部 ---------- */
+.header {
+	/* .page 有 24rpx 水平内边距，这里负边距破出来，让头部通栏而不是缩成一张卡片 */
+	margin: 0 -24rpx;
+	background-color: #ffffff;
+	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+}
+
+.header__inner {
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	padding: 0 24rpx;
+}
+
+.back {
+	width: 60rpx;
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+}
+
+/* 返回箭头（纯 CSS 绘制，与首页图标同一风格） */
+.icon-back {
+	position: relative;
+	width: 44rpx;
+	height: 44rpx;
+}
+
+.icon-back__head {
+	position: absolute;
+	left: 11rpx;
+	top: 14rpx;
+	width: 16rpx;
+	height: 16rpx;
+	box-sizing: border-box;
+	border-left: 4rpx solid #333333;
+	border-bottom: 4rpx solid #333333;
+	transform: rotate(45deg);
+}
+
+.icon-back__shaft {
+	position: absolute;
+	left: 14rpx;
+	top: 20rpx;
+	width: 20rpx;
+	height: 4rpx;
+	border-radius: 2rpx;
+	background-color: #333333;
+}
+
+.header__title {
+	flex: 1;
+	text-align: center;
+	font-size: 32rpx;
+	font-weight: bold;
+	color: #333333;
+}
+
+/* 右侧占位，与左侧返回键等宽，保证标题真正居中 */
+.header__placeholder {
+	width: 60rpx;
 }
 
 .hero {
