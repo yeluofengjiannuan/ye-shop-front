@@ -51,41 +51,8 @@
 		</view>
 
 		<!-- 排序栏 -->
-		<view class="sort">
-			<view
-				class="sort-item"
-				:class="{ 'sort-item--active': sortType === 'default' }"
-				@click="setSort('default')"
-			>
-				<text class="sort-item__text">默认</text>
-			</view>
-
-			<!-- 价格一个按钮来回切升降序，4 个排序值都可到达 -->
-			<view
-				class="sort-item"
-				:class="{ 'sort-item--active': isPriceSort }"
-				@click="togglePriceSort"
-			>
-				<text class="sort-item__text">价格</text>
-				<view class="sort-arrows">
-					<view
-						class="sort-arrow sort-arrow--up"
-						:class="{ 'sort-arrow--on': sortType === 'priceAsc' }"
-					></view>
-					<view
-						class="sort-arrow sort-arrow--down"
-						:class="{ 'sort-arrow--on': sortType === 'priceDesc' }"
-					></view>
-				</view>
-			</view>
-
-			<view
-				class="sort-item"
-				:class="{ 'sort-item--active': sortType === 'newest' }"
-				@click="setSort('newest')"
-			>
-				<text class="sort-item__text">最新</text>
-			</view>
+		<view class="sort-wrap">
+			<SortBar v-model="sortType" />
 		</view>
 
 		<!-- 商品列表 -->
@@ -96,7 +63,7 @@
 
 			<template v-else>
 				<view v-if="products.length" class="goods__grid">
-					<view class="goods-card" v-for="item in products" :key="item.id">
+					<view class="goods-card" @click="onProductTap(item)" v-for="item in products" :key="item.id">
 						<image
 							class="goods-card__img"
 							:src="imageFor(item)"
@@ -131,6 +98,7 @@
 
 <script>
 import AppNavbar from '@/components/AppNavbar.vue'
+import SortBar from '@/components/SortBar.vue'
 import { categoryApi, productApi } from '@/utils/api'
 import { FALLBACK_CATEGORIES } from '@/mock/categories'
 import { resolveProductImage, formatPrice } from '@/utils/productImage'
@@ -138,7 +106,7 @@ import { resolveProductImage, formatPrice } from '@/utils/productImage'
 const PAGE_SIZE = 20
 
 export default {
-	components: { AppNavbar },
+	components: { AppNavbar, SortBar },
 	data() {
 		return {
 			cartCount: 0,
@@ -160,13 +128,18 @@ export default {
 			failedImageIds: [],
 		}
 	},
+	watch: {
+		// SortBar 通过 v-model 改排序，必须在这里统一重新拉数据，
+		// 否则点了排序只是高亮变了、列表不动
+		sortType() {
+			this.reloadProducts()
+		},
+	},
 	computed: {
 		subCategories() {
 			return (this.activeL1 && this.activeL1.children) || []
 		},
-		isPriceSort() {
-			return this.sortType === 'priceAsc' || this.sortType === 'priceDesc'
-		},
+
 		/** 选中二级就查二级，一级没有子分类时退回查一级（isFirstCategoryId 决定是否下钻） */
 		queryCategory() {
 			return this.activeL2 || this.activeL1
@@ -260,17 +233,6 @@ export default {
 			this.reloadProducts()
 		},
 
-		/* ---------------- 排序 ---------------- */
-		setSort(type) {
-			if (this.sortType === type) return
-			this.sortType = type
-			this.reloadProducts()
-		},
-		togglePriceSort() {
-			// 价格升 -> 价格降 -> 价格升，来回切换
-			this.setSort(this.sortType === 'priceAsc' ? 'priceDesc' : 'priceAsc')
-		},
-
 		/* ---------------- 商品 ---------------- */
 		reloadProducts() {
 			// 换分类或换排序都要重置游标：curCommonEntity 的 sortValue 是跟着
@@ -329,6 +291,12 @@ export default {
 		onImageError(item) {
 			if (!item || item.id == null) return
 			if (this.failedImageIds.indexOf(item.id) === -1) this.failedImageIds.push(item.id)
+		},
+		onProductTap(item) {
+			if (!item || item.id == null) return
+			uni.navigateTo({
+				url: `/pages/product/detail?productId=${item.id}`,
+			})
 		},
 		addToCart(item) {
 			this.cartCount++
@@ -457,66 +425,8 @@ page {
 }
 
 /* ---------- 排序栏 ---------- */
-.sort {
-	display: flex;
-	align-items: center;
+.sort-wrap {
 	margin: 20rpx 24rpx 0;
-	padding: 0 12rpx;
-	height: 80rpx;
-	background-color: #ffffff;
-	border-radius: 20rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
-}
-
-.sort-item {
-	flex: 1;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 80rpx;
-}
-
-.sort-item__text {
-	font-size: 28rpx;
-	color: #333333;
-}
-
-.sort-item--active .sort-item__text {
-	color: #ff6b35;
-	font-weight: bold;
-}
-
-/* 价格升降序箭头（纯 CSS 三角形） */
-.sort-arrows {
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	margin-left: 8rpx;
-	height: 28rpx;
-}
-
-.sort-arrow {
-	width: 0;
-	height: 0;
-	border-left: 8rpx solid transparent;
-	border-right: 8rpx solid transparent;
-}
-
-.sort-arrow--up {
-	border-bottom: 9rpx solid #cccccc;
-	margin-bottom: 4rpx;
-}
-
-.sort-arrow--down {
-	border-top: 9rpx solid #cccccc;
-}
-
-.sort-arrow--on.sort-arrow--up {
-	border-bottom-color: #ff6b35;
-}
-
-.sort-arrow--on.sort-arrow--down {
-	border-top-color: #ff6b35;
 }
 
 /* ---------- 商品列表 ---------- */

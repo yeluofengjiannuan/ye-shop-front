@@ -1,19 +1,8 @@
 <template>
 	<view class="page">
-		<!-- 子页面头部。本页是 navigationStyle: custom，原生导航栏（含返回箭头）被去掉了，
+		<!-- 本页是 navigationStyle: custom，原生导航栏（含返回箭头）被去掉了，
 		     必须自己提供返回入口，否则在小程序/App 上进得来出不去 -->
-		<view class="header" :style="{ paddingTop: statusBarHeight + 'px' }">
-			<view class="header__inner">
-				<view class="back" @click="goBack">
-					<view class="icon-back">
-						<view class="icon-back__head"></view>
-						<view class="icon-back__shaft"></view>
-					</view>
-				</view>
-				<text class="header__title">个人中心</text>
-				<view class="header__placeholder"></view>
-			</view>
-		</view>
+		<PageHeader title="个人中心" />
 
 		<!-- 用户信息 -->
 		<view class="hero">
@@ -51,6 +40,15 @@
 			</view>
 		</view>
 
+		<!-- 收货地址入口 -->
+		<view class="entry" @click="onAddress">
+			<text class="entry__label">收货地址</text>
+			<view class="entry__right">
+				<text class="entry__value">{{ addressSummary }}</text>
+				<view class="entry__arrow"></view>
+			</view>
+		</view>
+
 		<view class="logout" @click="handleLogout">
 			<text class="logout__text">退出登录</text>
 		</view>
@@ -58,16 +56,18 @@
 </template>
 
 <script>
+import PageHeader from '@/components/PageHeader.vue'
 import { useUserStore } from '@/store/modules/user'
-import { userApi } from '@/utils/api'
+import { userApi, addressApi } from '@/utils/api'
 import { BASE_URL } from '@/utils/request'
 
 export default {
+	components: { PageHeader },
 	data() {
 		return {
-			statusBarHeight: 0,
 			// 记录加载失败的头像地址，避免上一张失败后一直显示兜底
 			avatarFailedUrl: '',
+			addresses: [],
 		}
 	},
 	computed: {
@@ -97,22 +97,23 @@ export default {
 		roleText() {
 			return this.userStore.isEnterprise ? '企业用户' : '个人用户'
 		},
+		/** 入口右侧摘要：优先默认地址，没有就取第一条；都没有则提示去添加 */
+		addressSummary() {
+			if (!this.addresses.length) return '暂无收货地址'
+			const item =
+				this.addresses.find((a) => a.isDefault === true || a.isDefault === 'true') ||
+				this.addresses[0]
+			return `${item.receiver || ''} ${item.phone || ''}`.trim()
+		},
 	},
 	onLoad() {
-		const info = uni.getSystemInfoSync()
-		this.statusBarHeight = info.statusBarHeight || 0
 		this.loadDetail()
 	},
+	// 用 onShow：从地址管理页返回时摘要能自动刷新
+	onShow() {
+		this.loadAddresses()
+	},
 	methods: {
-		goBack() {
-			// 栈里只有本页（冷启动直接进来）时无处可退，回首页
-			const pages = getCurrentPages()
-			if (pages.length > 1) {
-				uni.navigateBack()
-				return
-			}
-			uni.reLaunch({ url: '/pages/index/index' })
-		},
 		/** 拉取用户详情刷新 store。失败时保留缓存数据，只提示一次 */
 		async loadDetail() {
 			try {
@@ -127,6 +128,19 @@ export default {
 		},
 		onAvatarError() {
 			this.avatarFailedUrl = this.avatarUrl
+		},
+		async loadAddresses() {
+			try {
+				const data = await addressApi.getList()
+				this.addresses = Array.isArray(data) ? data.filter((item) => item && item.id != null) : []
+			} catch (err) {
+				// 地址拿不到不该影响个人中心其他内容
+				this.addresses = []
+				console.warn('[profile] 地址加载失败：', err && err.message)
+			}
+		},
+		onAddress() {
+			uni.navigateTo({ url: '/pages/address/list' })
 		},
 		handleLogout() {
 			uni.showModal({
@@ -153,79 +167,15 @@ page {
 /* 沿用首页色板：主色 #FF6B35 / 背景 #F5F5F5 / 文字 #333333 */
 .page {
 	min-height: 100vh;
-	padding: 0 24rpx 40rpx;
+	padding-bottom: 40rpx;
 	box-sizing: border-box;
-}
-
-/* ---------- 子页面头部 ---------- */
-.header {
-	/* .page 有 24rpx 水平内边距，这里负边距破出来，让头部通栏而不是缩成一张卡片 */
-	margin: 0 -24rpx;
-	background-color: #ffffff;
-	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
-}
-
-.header__inner {
-	height: 88rpx;
-	display: flex;
-	align-items: center;
-	padding: 0 24rpx;
-}
-
-.back {
-	width: 60rpx;
-	height: 88rpx;
-	display: flex;
-	align-items: center;
-}
-
-/* 返回箭头（纯 CSS 绘制，与首页图标同一风格） */
-.icon-back {
-	position: relative;
-	width: 44rpx;
-	height: 44rpx;
-}
-
-.icon-back__head {
-	position: absolute;
-	left: 11rpx;
-	top: 14rpx;
-	width: 16rpx;
-	height: 16rpx;
-	box-sizing: border-box;
-	border-left: 4rpx solid #333333;
-	border-bottom: 4rpx solid #333333;
-	transform: rotate(45deg);
-}
-
-.icon-back__shaft {
-	position: absolute;
-	left: 14rpx;
-	top: 20rpx;
-	width: 20rpx;
-	height: 4rpx;
-	border-radius: 2rpx;
-	background-color: #333333;
-}
-
-.header__title {
-	flex: 1;
-	text-align: center;
-	font-size: 32rpx;
-	font-weight: bold;
-	color: #333333;
-}
-
-/* 右侧占位，与左侧返回键等宽，保证标题真正居中 */
-.header__placeholder {
-	width: 60rpx;
 }
 
 .hero {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	margin: 40rpx 0 20rpx;
+	margin: 40rpx 24rpx 20rpx;
 	padding: 48rpx 20rpx;
 	background-color: #ffffff;
 	border-radius: 20rpx;
@@ -270,7 +220,7 @@ page {
 }
 
 .panel {
-	margin-top: 20rpx;
+	margin: 20rpx 24rpx 0;
 	padding: 8rpx 32rpx;
 	background-color: #ffffff;
 	border-radius: 20rpx;
@@ -299,8 +249,46 @@ page {
 	color: #333333;
 }
 
+/* ---------- 收货地址入口 ---------- */
+.entry {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 20rpx 24rpx 0;
+	padding: 28rpx 32rpx;
+	background-color: #ffffff;
+	border-radius: 20rpx;
+	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+.entry__label {
+	font-size: 28rpx;
+	color: #333333;
+}
+
+.entry__right {
+	display: flex;
+	align-items: center;
+}
+
+.entry__value {
+	font-size: 26rpx;
+	color: #999999;
+}
+
+/* 右向箭头（纯 CSS，与返回箭头同一风格，只是转个方向） */
+.entry__arrow {
+	width: 14rpx;
+	height: 14rpx;
+	margin-left: 12rpx;
+	box-sizing: border-box;
+	border-top: 3rpx solid #cccccc;
+	border-right: 3rpx solid #cccccc;
+	transform: rotate(45deg);
+}
+
 .logout {
-	margin-top: 40rpx;
+	margin: 40rpx 24rpx 0;
 	height: 88rpx;
 	border-radius: 44rpx;
 	background-color: #ffffff;

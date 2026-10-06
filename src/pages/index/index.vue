@@ -18,13 +18,13 @@
 			</swiper-item>
 		</swiper>
 
-		<!-- 搜索框（伪搜索框：不可输入，点击先弹提示） -->
+		<!-- 搜索框（伪搜索框：点了跳独立搜索页，本身不可输入） -->
 		<view class="search" @click="onSearch">
 			<view class="icon-search">
 				<view class="icon-search__ring"></view>
 				<view class="icon-search__handle"></view>
 			</view>
-			<text class="search__placeholder">大家都在搜：iPhone 16 Pro Max</text>
+			<text class="search__placeholder">大家都在搜：{{ currentKeyword }}</text>
 		</view>
 
 		<!-- 分类 tab：加载中显示等高骨架，避免数据到达时页面跳动 -->
@@ -60,31 +60,107 @@
 			</view>
 		</block>
 
-		<!-- 商品列表 -->
-		<view class="goods">
-			<view class="goods__heading">
-				<view class="goods__accent"></view>
-				<text class="goods__title">{{ goodsTitle }}</text>
+		<!-- ============ 精选：热销 + 为你推荐 ============ -->
+		<block v-if="isFeaturedTab">
+			<!-- 热销（横向滑动） -->
+			<view class="hot">
+				<view class="goods__heading">
+					<view class="goods__accent"></view>
+					<text class="goods__title">热销好物</text>
+				</view>
+
+				<scroll-view v-if="hotLoading" class="hot__scroll" scroll-x>
+					<view class="hot__skeleton"><view class="hot__skeleton-item" v-for="n in 3" :key="n"></view></view>
+				</scroll-view>
+
+				<scroll-view v-else-if="hotList.length" class="hot__scroll" scroll-x>
+					<view
+						class="hot-card"
+						v-for="item in hotList"
+						:key="item.id"
+						@click="onProductTap(item)"
+					>
+						<image
+							class="hot-card__img"
+							:src="imageFor(item)"
+							mode="aspectFill"
+							@error="onImageError(item)"
+						/>
+						<text class="hot-card__name">{{ item.name }}</text>
+						<text class="hot-card__price">
+							<text class="hot-card__symbol">¥</text>{{ formatPrice(item.price) }}
+						</text>
+					</view>
+				</scroll-view>
 			</view>
 
-			<!-- 加载中 -->
-			<view v-if="productsLoading" class="goods__status">
+			<!-- 为你推荐（无限滚动） -->
+			<view class="goods">
+				<view class="goods__heading">
+					<view class="goods__accent"></view>
+					<text class="goods__title">为你推荐</text>
+				</view>
+
+				<view v-if="featuredLoading" class="goods__status">
+					<text class="goods__status-text">加载中…</text>
+				</view>
+
+				<template v-else>
+					<view v-if="featuredList.length" class="goods__grid">
+						<view class="goods-card" @click="onProductTap(item)" v-for="item in featuredList" :key="item.id">
+							<image
+								class="goods-card__img"
+								:src="imageFor(item)"
+								mode="aspectFill"
+								@error="onImageError(item)"
+							/>
+							<view class="goods-card__body">
+								<text class="goods-card__name">{{ item.name }}</text>
+								<view class="goods-card__bottom">
+									<text class="goods-card__price">
+										<text class="goods-card__symbol">¥</text>{{ formatPrice(item.price) }}
+									</text>
+									<view class="goods-card__btn" @click.stop="addToCart(item)">
+										<text class="goods-card__btn-text">加入购物车</text>
+									</view>
+								</view>
+							</view>
+						</view>
+					</view>
+
+					<view v-else class="goods__empty">
+						<text class="goods__empty-text">暂无商品</text>
+					</view>
+				</template>
+
+				<view v-if="!featuredLoading && featuredList.length" class="goods__more">
+					<text class="goods__more-text">{{ moreText }}</text>
+				</view>
+			</view>
+		</block>
+
+		<!-- ============ 具体分类：只展示该分类商品 ============ -->
+		<view v-else class="goods">
+			<view class="goods__heading">
+				<view class="goods__accent"></view>
+				<text class="goods__title">{{ activeTab.name }}</text>
+			</view>
+
+			<view v-if="categoryLoading" class="goods__status">
 				<text class="goods__status-text">加载中…</text>
 			</view>
 
 			<template v-else>
-				<view v-if="displayProducts.length" class="goods__grid">
-					<view class="goods-card" v-for="item in displayProducts" :key="item.id">
+				<view v-if="categoryProducts.length" class="goods__grid">
+					<view class="goods-card" @click="onProductTap(item)" v-for="item in categoryProducts" :key="item.id">
 						<image
 							class="goods-card__img"
 							:src="imageFor(item)"
 							mode="aspectFill"
 							@error="onImageError(item)"
 						/>
-
 						<view class="goods-card__body">
 							<text class="goods-card__name">{{ item.name }}</text>
-
 							<view class="goods-card__bottom">
 								<text class="goods-card__price">
 									<text class="goods-card__symbol">¥</text>{{ formatPrice(item.price) }}
@@ -97,16 +173,10 @@
 					</view>
 				</view>
 
-				<!-- 查不到就显示暂无商品 -->
 				<view v-else class="goods__empty">
 					<text class="goods__empty-text">暂无商品</text>
 				</view>
 			</template>
-
-			<!-- 精选走无限滚动，这里给个到底提示；分类页是一次性加载，不展示 -->
-			<view v-if="isFeaturedTab && !productsLoading && displayProducts.length" class="goods__more">
-				<text class="goods__more-text">{{ moreText }}</text>
-			</view>
 		</view>
 	</view>
 </template>
@@ -121,6 +191,12 @@ import { resolveProductImage, formatPrice } from '@/utils/productImage'
 const ALL_TAB_KEY = 'all'
 /** 无限滚动每页条数 */
 const PAGE_SIZE = 10
+/** 热销模块取几条 */
+const HOT_SIZE = 8
+/** 搜索框热词轮播间隔 */
+const KEYWORD_INTERVAL = 3000
+/** 热词接口没数据时的兜底文案 */
+const DEFAULT_KEYWORD = 'iPhone 16 Pro Max'
 /** 轮播图接口不可用时的本地占位图 */
 const LOCAL_BANNERS = [1, 2, 3].map((n) => ({
 	id: `local-${n}`,
@@ -152,6 +228,15 @@ export default {
 			categoryProducts: [],
 			categoryLoading: false,
 
+			// 热销（仅精选下展示）
+			hotList: [],
+			hotLoading: false,
+
+			// 搜索框里轮播的热词
+			keywords: [],
+			keywordIndex: 0,
+			keywordTimer: null,
+
 			// 加载失败过的图片 id，避免反复重试坏地址
 			failedImageIds: [],
 		}
@@ -174,14 +259,10 @@ export default {
 		isFeaturedTab() {
 			return this.activeTabKey === ALL_TAB_KEY
 		},
-		displayProducts() {
-			return this.isFeaturedTab ? this.featuredList : this.categoryProducts
-		},
-		productsLoading() {
-			return this.isFeaturedTab ? this.featuredLoading : this.categoryLoading
-		},
-		goodsTitle() {
-			return this.isFeaturedTab ? '为你推荐' : this.activeTab.name
+		/** 搜索框里当前展示的热词；接口没返回就退回默认文案 */
+		currentKeyword() {
+			if (!this.keywords.length) return DEFAULT_KEYWORD
+			return this.keywords[this.keywordIndex % this.keywords.length]
 		},
 		moreText() {
 			if (this.featuredLoadingMore) return '加载中…'
@@ -198,10 +279,16 @@ export default {
 	onLoad() {
 		this.loadBanners()
 		this.loadCategories()
+		this.loadHot()
+		this.loadKeywords()
 	},
 	onReachBottom() {
 		// 只有精选是无限滚动
 		if (this.isFeaturedTab) this.loadFeatured()
+	},
+	onUnload() {
+		// 页面销毁必须清掉定时器，否则热词轮播会一直跑
+		this.stopKeywordRotation()
 	},
 	methods: {
 		/* ---------------- 轮播图 ---------------- */
@@ -227,6 +314,48 @@ export default {
 			if (!item || !item.linkUrl) return
 			// TODO: 商品详情页建好后改成 uni.navigateTo({ url: item.linkUrl })
 			uni.showToast({ title: '商品详情页开发中', icon: 'none' })
+		},
+
+		/* ---------------- 热销 ---------------- */
+		async loadHot() {
+			this.hotLoading = true
+			try {
+				const list = await productApi.getHot({ limit: HOT_SIZE })
+				this.hotList = (Array.isArray(list) ? list : []).filter(
+					(item) => item && item.id != null
+				)
+			} catch (err) {
+				// 热销拿不到不该影响整页，静默降级成不展示
+				console.warn('[index] 热销加载失败：', err && err.message)
+			} finally {
+				this.hotLoading = false
+			}
+		},
+
+		/* ---------------- 搜索热词轮播 ---------------- */
+		async loadKeywords() {
+			try {
+				const list = await productApi.getKeywords()
+				this.keywords = (Array.isArray(list) ? list : []).filter(
+					(item) => typeof item === 'string' && item.trim()
+				)
+			} catch (err) {
+				console.warn('[index] 搜索热词加载失败：', err && err.message)
+			}
+			// 只有一条就没必要轮播
+			if (this.keywords.length > 1) this.startKeywordRotation()
+		},
+		startKeywordRotation() {
+			this.stopKeywordRotation()
+			this.keywordTimer = setInterval(() => {
+				this.keywordIndex = (this.keywordIndex + 1) % this.keywords.length
+			}, KEYWORD_INTERVAL)
+		},
+		stopKeywordRotation() {
+			if (this.keywordTimer) {
+				clearInterval(this.keywordTimer)
+				this.keywordTimer = null
+			}
 		},
 
 		/* ---------------- 分类 ---------------- */
@@ -378,7 +507,13 @@ export default {
 
 		/* ---------------- 交互 ---------------- */
 		onSearch() {
-			uni.showToast({ title: '搜索功能开发中', icon: 'none' })
+			uni.navigateTo({ url: '/pages/search/search' })
+		},
+		onProductTap(item) {
+			if (!item || item.id == null) return
+			uni.navigateTo({
+				url: `/pages/product/detail?productId=${item.id}`,
+			})
 		},
 		addToCart(item) {
 			this.cartCount++
@@ -541,6 +676,80 @@ page {
 .tabs-hint__text {
 	font-size: 22rpx;
 	color: #ff6b35;
+}
+
+/* ---------- 热销（横向滑动条） ---------- */
+.hot {
+	margin: 20rpx 0 0;
+}
+
+/* 标题自己带左右边距；下面的滑动条要通栏出血，所以内边距不能加在 .hot 上 */
+.hot .goods__heading {
+	padding: 0 24rpx 20rpx;
+}
+
+.hot__scroll {
+	width: 100%;
+	white-space: nowrap;
+	padding-left: 24rpx;
+	box-sizing: border-box;
+}
+
+.hot-card {
+	display: inline-block;
+	width: 240rpx;
+	margin-right: 20rpx;
+	vertical-align: top;
+	/* 外层 nowrap 是为了横滑，卡片内部文字要能正常换行 */
+	white-space: normal;
+	background-color: #ffffff;
+	border-radius: 20rpx;
+	overflow: hidden;
+	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+.hot-card__img {
+	width: 240rpx;
+	height: 240rpx;
+	display: block;
+	background-color: #f5f5f5;
+}
+
+.hot-card__name {
+	display: -webkit-box;
+	overflow: hidden;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	height: 68rpx;
+	margin: 16rpx 16rpx 0;
+	font-size: 24rpx;
+	line-height: 34rpx;
+	color: #333333;
+}
+
+.hot-card__price {
+	display: block;
+	margin: 12rpx 16rpx 16rpx;
+	font-size: 28rpx;
+	font-weight: bold;
+	color: #ff6b35;
+}
+
+.hot-card__symbol {
+	font-size: 22rpx;
+}
+
+.hot__skeleton {
+	display: flex;
+	align-items: flex-start;
+}
+
+.hot__skeleton-item {
+	width: 240rpx;
+	height: 340rpx;
+	margin-right: 20rpx;
+	border-radius: 20rpx;
+	background-color: #eeeeee;
 }
 
 /* ---------- 商品列表 ---------- */

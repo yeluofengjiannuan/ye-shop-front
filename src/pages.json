@@ -17,6 +17,34 @@
 			}
 		},
 		{
+			"path": "pages/address/list",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "收货地址"
+			}
+		},
+		{
+			"path": "pages/address/edit",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "编辑地址"
+			}
+		},
+		{
+			"path": "pages/product/detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "商品详情"
+			}
+		},
+		{
+			"path": "pages/search/search",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "搜索"
+			}
+		},
+		{
 			// 登录页：不进 tabBar，也不该被未登录拦截器挡住（见 App.vue 白名单）
 			"path": "pages/login/login",
 			"style": {

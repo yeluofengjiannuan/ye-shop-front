@@ -15,17 +15,26 @@ export function placeholderFor(id) {
 }
 
 /**
+ * 解析单个图片地址该用哪张图
+ * @param {string} raw 后端返回的地址，可能是非法值
+ * @param {string|number} key 失败记录用的键（商品图用商品 id，详情轮播用下标组合）
+ * @param {Array} failedKeys 已加载失败过的键（由调用方维护）
+ */
+export function resolveImage(raw, key, failedKeys = []) {
+	if (failedKeys.indexOf(key) !== -1) return placeholderFor(key)
+	// 明显不是完整 URL 的直接用占位图，省掉一次必然失败的请求
+	if (!/^https?:\/\//i.test(raw || '')) return placeholderFor(key)
+	return raw
+}
+
+/**
  * 解析商品该用哪张图
  * @param {object} item 商品
  * @param {Array} failedIds 已加载失败过的商品 id（由调用方维护）
  */
 export function resolveProductImage(item, failedIds = []) {
 	if (!item) return PLACEHOLDER_IMAGES[0]
-	if (failedIds.indexOf(item.id) !== -1) return placeholderFor(item.id)
-	const raw = item.image || ''
-	// 明显不是完整 URL 的直接用占位图，省掉一次必然失败的请求
-	if (!/^https?:\/\//i.test(raw)) return placeholderFor(item.id)
-	return raw
+	return resolveImage(item.image, item.id, failedIds)
 }
 
 /** 商品价格格式化：后端返回数字（如 1299.0），统一显示两位小数 */
