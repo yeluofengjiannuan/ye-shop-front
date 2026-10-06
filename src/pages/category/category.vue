@@ -93,23 +93,34 @@
 				<text class="goods__more-text">{{ moreText }}</text>
 			</view>
 		</view>
+
+		<!-- 规格半屏（列表页加购入口） -->
+		<SpecSheet
+			:product-id="sheetProductId"
+			:visible="sheetVisible"
+			@close="sheetVisible = false"
+		/>
 	</view>
 </template>
 
 <script>
 import AppNavbar from '@/components/AppNavbar.vue'
 import SortBar from '@/components/SortBar.vue'
+import SpecSheet from '@/components/SpecSheet.vue'
 import { categoryApi, productApi } from '@/utils/api'
 import { FALLBACK_CATEGORIES } from '@/mock/categories'
 import { resolveProductImage, formatPrice } from '@/utils/productImage'
+import { useCartStore } from '@/store/modules/cart'
 
 const PAGE_SIZE = 20
 
 export default {
-	components: { AppNavbar, SortBar },
+	components: { AppNavbar, SortBar, SpecSheet },
 	data() {
 		return {
-			cartCount: 0,
+			// 规格半屏：列表接口不给规格，加购必须先弹这个选 specId
+			sheetProductId: '',
+			sheetVisible: false,
 			treeLoading: true,
 			treeFailed: false,
 			categories: [],
@@ -136,6 +147,10 @@ export default {
 		},
 	},
 	computed: {
+		/** 角标直连 cart store，不再是页面本地的假计数 */
+		cartCount() {
+			return useCartStore().count
+		},
 		subCategories() {
 			return (this.activeL1 && this.activeL1.children) || []
 		},
@@ -299,9 +314,11 @@ export default {
 			})
 		},
 		addToCart(item) {
-			this.cartCount++
-			uni.showToast({ title: '已加入购物车', icon: 'none' })
-			console.log('加入购物车:', item && item.name)
+			if (!item || item.id == null) return
+			// 列表接口只给商品不给规格，而加购接口事实必填 specId，
+			// 所以这里开规格半屏，选完规格才真正发请求
+			this.sheetProductId = String(item.id)
+			this.sheetVisible = true
 		},
 	},
 }

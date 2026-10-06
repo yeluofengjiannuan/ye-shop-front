@@ -179,13 +179,22 @@
 			</template>
 		</view>
 	</view>
+
+	<!-- 规格半屏（列表页加购入口） -->
+	<SpecSheet
+		:product-id="sheetProductId"
+		:visible="sheetVisible"
+		@close="sheetVisible = false"
+	/>
 </template>
 
 <script>
 import AppNavbar from '@/components/AppNavbar.vue'
+import SpecSheet from '@/components/SpecSheet.vue'
 import { categoryApi, productApi, bannerApi } from '@/utils/api'
 import { FALLBACK_CATEGORIES } from '@/mock/categories'
 import { resolveProductImage, formatPrice } from '@/utils/productImage'
+import { useCartStore } from '@/store/modules/cart'
 
 /** 「精选」伪 tab 的 key。真实分类的 key 是 'cat-<数字 id>'，不会撞 */
 const ALL_TAB_KEY = 'all'
@@ -205,10 +214,12 @@ const LOCAL_BANNERS = [1, 2, 3].map((n) => ({
 }))
 
 export default {
-	components: { AppNavbar },
+	components: { AppNavbar, SpecSheet },
 	data() {
 		return {
-			cartCount: 0,
+			// 规格半屏：列表接口不给规格，加购必须先弹这个选 specId
+			sheetProductId: '',
+			sheetVisible: false,
 			// 先放本地占位图，接口拿到后再替换，保证轮播区不会空掉
 			banners: LOCAL_BANNERS,
 			categoriesLoading: true,
@@ -242,6 +253,10 @@ export default {
 		}
 	},
 	computed: {
+		/** 角标直连 cart store，不再是页面本地的假计数 */
+		cartCount() {
+			return useCartStore().count
+		},
 		tabs() {
 			// 精选恒定在第一位，不参与后端 sort 排序
 			return [
@@ -516,9 +531,11 @@ export default {
 			})
 		},
 		addToCart(item) {
-			this.cartCount++
-			uni.showToast({ title: '已加入购物车', icon: 'none' })
-			console.log('加入购物车:', item && item.name)
+			if (!item || item.id == null) return
+			// 列表接口只给商品不给规格，而加购接口事实必填 specId，
+			// 所以这里开规格半屏，选完规格才真正发请求
+			this.sheetProductId = String(item.id)
+			this.sheetVisible = true
 		},
 	},
 }

@@ -105,6 +105,7 @@
 import PageHeader from '@/components/PageHeader.vue'
 import { productApi, userApi } from '@/utils/api'
 import { useUserStore } from '@/store/modules/user'
+import { useCartStore } from '@/store/modules/cart'
 import { resolveImage, formatPrice } from '@/utils/productImage'
 
 export default {
@@ -120,6 +121,8 @@ export default {
 			collected: false,
 			// 防重复提交：后端对重复收藏同一商品会返回 500
 			collecting: false,
+			// 加购在途标记，避免连点发出多次请求
+			adding: false,
 		}
 	},
 	computed: {
@@ -216,11 +219,40 @@ export default {
 		onImageError(key) {
 			if (this.failedImageKeys.indexOf(key) === -1) this.failedImageKeys.push(key)
 		},
-		addToCart() {
-			const name = this.detail && this.detail.name
-			const spec = this.activeSpec ? `（${this.activeSpec.specText}）` : ''
-			uni.showToast({ title: '已加入购物车', icon: 'none' })
-			console.log('加入购物车:', name, spec)
+		async addToCart() {
+			if (!this.detail || this.adding) return
+
+			/*
+			 * 加购接口的 specId 是事实必填：后端 checkProductStatus 是
+			 * product INNER JOIN product_spec ON ... AND s.id = #{specId}，
+			 * 不传规格时 s.id = NULL 恒不成立，会返回「数据异常，请重试」。
+			 * 所以没选规格就硬发请求是白跑，这里直接拦住。
+			 */
+			if (!this.activeSpec) {
+				uni.showToast({
+					title: this.specs.length ? '请先选择规格' : '该商品暂无可选规格',
+					icon: 'none',
+				})
+				return
+			}
+			if (Number(this.activeSpec.stock) <= 0) {
+				uni.showToast({ title: '该规格已售罄', icon: 'none' })
+				return
+			}
+
+			this.adding = true
+			try {
+				await useCartStore().add({
+					productId: this.detail.id,
+					specId: this.activeSpec.id,
+					quantity: 1,
+				})
+				uni.showToast({ title: '已加入购物车', icon: 'none' })
+			} catch (err) {
+				uni.showToast({ title: (err && err.message) || '加入购物车失败', icon: 'none' })
+			} finally {
+				this.adding = false
+			}
 		},
 	},
 }

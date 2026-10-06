@@ -83,21 +83,32 @@
 				</view>
 			</view>
 		</block>
+
+		<!-- 规格半屏（列表页加购入口） -->
+		<SpecSheet
+			:product-id="sheetProductId"
+			:visible="sheetVisible"
+			@close="sheetVisible = false"
+		/>
 	</view>
 </template>
 
 <script>
 import PageHeader from '@/components/PageHeader.vue'
 import SortBar from '@/components/SortBar.vue'
+import SpecSheet from '@/components/SpecSheet.vue'
 import { productApi } from '@/utils/api'
 import { resolveProductImage, formatPrice } from '@/utils/productImage'
 
 const PAGE_SIZE = 20
 
 export default {
-	components: { PageHeader, SortBar },
+	components: { PageHeader, SortBar, SpecSheet },
 	data() {
 		return {
+			// 规格半屏：列表接口不给规格，加购必须先弹这个选 specId
+			sheetProductId: '',
+			sheetVisible: false,
 			keyword: '',
 			/** 已提交搜索的关键词，结果与它对应 */
 			submittedKeyword: '',
@@ -230,8 +241,11 @@ export default {
 			})
 		},
 		addToCart(item) {
-			uni.showToast({ title: '已加入购物车', icon: 'none' })
-			console.log('加入购物车:', item && item.name)
+			if (!item || item.id == null) return
+			// 列表接口只给商品不给规格，而加购接口事实必填 specId，
+			// 所以这里开规格半屏，选完规格才真正发请求
+			this.sheetProductId = String(item.id)
+			this.sheetVisible = true
 		},
 	},
 }

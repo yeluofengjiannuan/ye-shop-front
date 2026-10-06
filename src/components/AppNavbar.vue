@@ -90,8 +90,8 @@ export default {
 			})
 		},
 		goCart() {
-			// TODO: 购物车页建好后改成 uni.navigateTo({ url: '/pages/cart/cart' })
-			uni.showToast({ title: `购物车共 ${this.cartCount} 件商品`, icon: 'none' })
+			// 未登录时这里会被 App.vue 的拦截器接管，自动改送登录页
+			uni.navigateTo({ url: '/pages/cart/cart' })
 		},
 		goProfile() {
 			const userStore = useUserStore()

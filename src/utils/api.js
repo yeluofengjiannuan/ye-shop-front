@@ -161,3 +161,61 @@ export const bannerApi = {
     return request({ url: '/api/banner/list', method: 'GET' })
   },
 }
+
+/**
+ * 购物车
+ *
+ * 以下几条都是实测出来的（不是看文档猜的），踩中任何一条都会白跑一次请求：
+ *
+ * 1. add 的 specId 是**事实必填**。后端 checkProductStatus 是
+ *    `product INNER JOIN product_spec ON ... AND s.id = #{specId}`，
+ *    specId 传 null 时 `s.id = NULL` 恒不成立，返回 success:false +「数据异常，请重试」。
+ *    注意这种情况 HTTP 状态码是 200，得靠 success 字段判断（request.js 已经处理）。
+ *
+ * 2. updateQuantity 的 quantity **后端完全不校验**。DTO 上虽然写着 @Min(1)，
+ *    但 Controller 的参数没加 @Validated，注解根本没生效 —— 实测传 0 和 -5 都能写进去。
+ *    所以上下限必须由前端自己卡死。
+ *
+ * 3. deleteBatch 的 ids 是 List<Long>。实测「逗号分隔的单值」（ids=11,12,13）
+ *    Spring 能正常绑定，所以这里手工拼串，不依赖 uni.request 对数组的序列化。
+ */
+export const cartApi = {
+  /** 购物车列表 GET /api/cart/list，data 直接就是 CartItem 数组 */
+  getList() {
+    return request({ url: '/api/cart/list', method: 'GET' })
+  },
+
+  /** 加入购物车 POST /api/cart/add，body 是 CartProductDTO */
+  add({ productId, specId, quantity = 1 }) {
+    return request({
+      url: '/api/cart/add',
+      method: 'POST',
+      data: { productId, specId, quantity },
+    })
+  },
+
+  /** 修改数量 PUT /api/cart/updateQuantity，参数在 query */
+  updateQuantity({ cartId, quantity }) {
+    return request({
+      url: `/api/cart/updateQuantity?cartId=${cartId}&quantity=${quantity}`,
+      method: 'PUT',
+    })
+  },
+
+  /** 批量删除 DELETE /api/cart/deleteBatch，ids 用逗号分隔 */
+  removeBatch({ ids }) {
+    const list = (ids || []).filter((id) => id != null)
+    if (!list.length) return Promise.resolve()
+    return request({ url: `/api/cart/deleteBatch?ids=${list.join(',')}`, method: 'DELETE' })
+  },
+
+  /**
+   * 清空购物车 DELETE /api/cart/clear
+   * 注意：购物车本来就是空的时候后端会返回 HTTP 500
+   * （clearCart 里 remove() 影响 0 行就抛异常，和 batchDelete 的写法不一致）。
+   * 调用方只应在确实有商品时调它。
+   */
+  clear() {
+    return request({ url: '/api/cart/clear', method: 'DELETE' })
+  },
+}
