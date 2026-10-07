@@ -40,6 +40,17 @@
 			</view>
 		</view>
 
+		<!-- 我的优惠券入口 -->
+		<view class="entry" @click="onCoupon">
+			<text class="entry__label">我的优惠券</text>
+			<view class="entry__right">
+				<text class="entry__value" :class="{ 'entry__value--accent': couponTotal > 0 }">
+					{{ couponSummary }}
+				</text>
+				<view class="entry__arrow"></view>
+			</view>
+		</view>
+
 		<!-- 收货地址入口 -->
 		<view class="entry" @click="onAddress">
 			<text class="entry__label">收货地址</text>
@@ -58,7 +69,7 @@
 <script>
 import PageHeader from '@/components/PageHeader.vue'
 import { useUserStore } from '@/store/modules/user'
-import { userApi, addressApi } from '@/utils/api'
+import { userApi, addressApi, couponApi } from '@/utils/api'
 import { BASE_URL } from '@/utils/request'
 
 export default {
@@ -68,6 +79,8 @@ export default {
 			// 记录加载失败的头像地址，避免上一张失败后一直显示兜底
 			avatarFailedUrl: '',
 			addresses: [],
+			// 我持有的优惠券，用于右侧摘要
+			coupons: [],
 		}
 	},
 	computed: {
@@ -105,13 +118,21 @@ export default {
 				this.addresses[0]
 			return `${item.receiver || ''} ${item.phone || ''}`.trim()
 		},
+		/** 可用券总数：按每张券的未使用张数累加，不是记录条数 */
+		couponTotal() {
+			return this.coupons.reduce((sum, item) => sum + (Number(item.unusedCount) || 0), 0)
+		},
+		couponSummary() {
+			return this.couponTotal > 0 ? `${this.couponTotal} 张可用` : '暂无可用优惠券'
+		},
 	},
 	onLoad() {
 		this.loadDetail()
 	},
-	// 用 onShow：从地址管理页返回时摘要能自动刷新
+	// 用 onShow：从地址管理页/领券页返回时摘要能自动刷新
 	onShow() {
 		this.loadAddresses()
+		this.loadCoupons()
 	},
 	methods: {
 		/** 拉取用户详情刷新 store。失败时保留缓存数据，只提示一次 */
@@ -138,6 +159,20 @@ export default {
 				this.addresses = []
 				console.warn('[profile] 地址加载失败：', err && err.message)
 			}
+		},
+		async loadCoupons() {
+			try {
+				// 空列表时后端不返回 data 字段，getMyList 已经兜成 []
+				this.coupons = await couponApi.getMyList()
+			} catch (err) {
+				// 同地址：拿不到不该影响个人中心其他内容
+				this.coupons = []
+				console.warn('[profile] 优惠券加载失败：', err && err.message)
+			}
+		},
+		onCoupon() {
+			// 直接落在「我的券」那个 tab
+			uni.navigateTo({ url: '/pages/coupon/list?tab=mine' })
 		},
 		onAddress() {
 			uni.navigateTo({ url: '/pages/address/list' })
@@ -274,6 +309,12 @@ page {
 .entry__value {
 	font-size: 26rpx;
 	color: #999999;
+}
+
+/* 有可用券时用主色提一下，和「暂无」拉开区别 */
+.entry__value--accent {
+	color: #ff6b35;
+	font-weight: bold;
 }
 
 /* 右向箭头（纯 CSS，与返回箭头同一风格，只是转个方向） */

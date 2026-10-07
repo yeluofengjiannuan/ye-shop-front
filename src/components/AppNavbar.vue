@@ -24,6 +24,7 @@
 						<text>购物车</text>
 						<text v-if="cartCount > 0" class="nav-link__badge">{{ cartCount }}</text>
 					</view>
+					<text class="nav-link" @click="goCoupon">领券</text>
 					<text class="nav-link" @click="goProfile">我的</text>
 				</view>
 			</view>
@@ -92,6 +93,9 @@ export default {
 		goCart() {
 			// 未登录时这里会被 App.vue 的拦截器接管，自动改送登录页
 			uni.navigateTo({ url: '/pages/cart/cart' })
+		},
+		goCoupon() {
+			uni.navigateTo({ url: '/pages/coupon/list' })
 		},
 		goProfile() {
 			const userStore = useUserStore()

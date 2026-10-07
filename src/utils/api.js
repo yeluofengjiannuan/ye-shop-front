@@ -219,3 +219,46 @@ export const cartApi = {
     return request({ url: '/api/cart/clear', method: 'DELETE' })
   },
 }
+
+/**
+ * 优惠券
+ *
+ * 同样有几条实测出来的硬约束：
+ *
+ * 1. receive 的 quantity 必须**精确等于**该券的 perUserQty，否则后端直接返回
+ *    「用户获取优惠券数量异常,请重试」。线上各券的 perUserQty 是 1/1/2/1/3，
+ *    不固定，必须从券里读出来再原样传回去。传错是 HTTP 200 + success:false，
+ *    很容易被误判成领取成功。
+ *
+ * 2. 每人每券只能领一次，重复领返回「优惠券已领取」。
+ *
+ * 3. getMyList 在空列表时不返回 data 字段（Result.success() 不带参数），
+ *    request.js 会解析出 undefined。两个页面都要用它，所以在这里统一兜成数组。
+ *
+ * 4. 领取是 MQ 异步落库，receive 发完消息就返回成功。不能拿「列表里出现了」
+ *    当领取成功的判据。
+ */
+export const couponApi = {
+  /**
+   * 可领取的活动列表 GET /api/coupon/activity
+   * 注意：后端只按 status=ON_SHELF + releaseTime<=now 过滤，**不筛已过期**，
+   * 调用方要自己按 validEnd 过滤。
+   */
+  getActivity() {
+    return request({ url: '/api/coupon/activity', method: 'GET' })
+  },
+
+  /** 领取优惠券 POST /api/coupon/receive，参数在 query */
+  receive({ couponId, quantity }) {
+    return request({
+      url: `/api/coupon/receive?couponId=${couponId}&quantity=${quantity}`,
+      method: 'POST',
+    })
+  },
+
+  /** 我持有的优惠券 GET /api/coupon/myList，返回值已兜成数组 */
+  async getMyList() {
+    const data = await request({ url: '/api/coupon/myList', method: 'GET' })
+    return Array.isArray(data) ? data : []
+  },
+}
