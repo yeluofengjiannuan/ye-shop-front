@@ -40,6 +40,17 @@
 			</view>
 		</view>
 
+		<!-- 我的订单入口 -->
+		<view class="entry" @click="onOrder">
+			<text class="entry__label">我的订单</text>
+			<view class="entry__right">
+				<text class="entry__value" :class="{ 'entry__value--accent': orderPendingCount > 0 }">
+					{{ orderSummary }}
+				</text>
+				<view class="entry__arrow"></view>
+			</view>
+		</view>
+
 		<!-- 我的优惠券入口 -->
 		<view class="entry" @click="onCoupon">
 			<text class="entry__label">我的优惠券</text>
@@ -69,7 +80,7 @@
 <script>
 import PageHeader from '@/components/PageHeader.vue'
 import { useUserStore } from '@/store/modules/user'
-import { userApi, addressApi, couponApi } from '@/utils/api'
+import { userApi, addressApi, couponApi, orderApi } from '@/utils/api'
 import { BASE_URL } from '@/utils/request'
 
 export default {
@@ -81,6 +92,8 @@ export default {
 			addresses: [],
 			// 我持有的优惠券，用于右侧摘要
 			coupons: [],
+			// 我的订单，只用来算右侧摘要
+			orders: [],
 		}
 	},
 	computed: {
@@ -125,14 +138,23 @@ export default {
 		couponSummary() {
 			return this.couponTotal > 0 ? `${this.couponTotal} 张可用` : '暂无可用优惠券'
 		},
+		/** 待付款的笔数。列表接口没排序，靠排序取"最近一单"不稳，所以数待付款更实在 */
+		orderPendingCount() {
+			return this.orders.filter((o) => o.status === 'pendingPayment').length
+		},
+		orderSummary() {
+			if (this.orderPendingCount > 0) return `${this.orderPendingCount} 笔待付款`
+			return this.orders.length > 0 ? `${this.orders.length} 笔订单` : '暂无订单'
+		},
 	},
 	onLoad() {
 		this.loadDetail()
 	},
-	// 用 onShow：从地址管理页/领券页返回时摘要能自动刷新
+	// 用 onShow：从地址管理页/领券页/订单页返回时摘要能自动刷新
 	onShow() {
 		this.loadAddresses()
 		this.loadCoupons()
+		this.loadOrders()
 	},
 	methods: {
 		/** 拉取用户详情刷新 store。失败时保留缓存数据，只提示一次 */
@@ -173,6 +195,19 @@ export default {
 		onCoupon() {
 			// 直接落在「我的券」那个 tab
 			uni.navigateTo({ url: '/pages/coupon/list?tab=mine' })
+		},
+		async loadOrders() {
+			try {
+				// 只要摘要，不需要商品明细，所以直接用列表接口
+				this.orders = await orderApi.getListByPage({ pageName: 'allPage' })
+			} catch (err) {
+				// 同地址：拿不到不该影响个人中心其他内容
+				this.orders = []
+				console.warn('[profile] 订单加载失败：', err && err.message)
+			}
+		},
+		onOrder() {
+			uni.navigateTo({ url: '/pages/order/list' })
 		},
 		onAddress() {
 			uni.navigateTo({ url: '/pages/address/list' })

@@ -153,6 +153,22 @@ export const productApi = {
       data: { productId, isLogin },
     })
   },
+
+  /**
+   * 单个规格的现价与库存 GET /api/product/spec/price
+   * 返回 { productId, stock, price, productName, productStatus }（specId 没映射上，是 null）
+   *
+   * 注意：它读的是 Redis 里的 product:detail:{productId}，而下单扣库存时没失效这个缓存，
+   * 所以拿到的 stock（以及改价后的 price）可能是旧值。只当成"比购物车更新一点"的参考，
+   * 别当权威值用。
+   */
+  getSpecPrice({ productId, specId }) {
+    return request({
+      url: '/api/product/spec/price',
+      method: 'GET',
+      data: { productId, specId },
+    })
+  },
 }
 
 export const bannerApi = {
@@ -260,5 +276,63 @@ export const couponApi = {
   async getMyList() {
     const data = await request({ url: '/api/coupon/myList', method: 'GET' })
     return Array.isArray(data) ? data : []
+  },
+}
+
+/**
+ * 订单
+ *
+ * 几条实测出来的约束：
+ *
+ * 1. create 的每条 orderItem.price 必须和当前规格价**严格相等**，差一分就报
+ *    「商品【x】价格已变动」。这是防篡改的有意设计，价格要原样从购物车带过来。
+ * 2. couponUserId 是 CouponUser 那条记录的主键，不是 couponId。
+ * 3. create 的响应里**没有 status**（内存里拼的对象，status 是 null），
+ *    list 和 detail 才有。所以下完单要看状态得去查详情。
+ * 4. pageName 只能是 OrderPageEnum 的 pageKey，传错后端直接 500（不是 400）。
+ * 5. 下单成功后后端会挂一个延时任务，超时未支付自动取消。
+ */
+export const orderApi = {
+  /** 创建订单 POST /api/order/create，body 是 OrderDTO */
+  create(dto) {
+    return request({ url: '/api/order/create', method: 'POST', data: dto })
+  },
+
+  /**
+   * 按页面查订单 GET /api/order/page/list
+   * pageName 见 utils/order.js 的 ORDER_PAGES，别传别的值
+   */
+  async getListByPage({ pageName }) {
+    const data = await request({
+      url: '/api/order/page/list',
+      method: 'GET',
+      data: { pageName },
+    })
+    return Array.isArray(data) ? data : []
+  },
+
+  /** 订单详情 GET /api/order/detail，这个接口会带 orderItems 和 address */
+  getDetail({ orderNo }) {
+    return request({ url: '/api/order/detail', method: 'GET', data: { orderNo } })
+  },
+
+  /** 取消订单 PUT /api/order/cancel，只有待支付状态能取消 */
+  cancel({ orderNo, cancelReason }) {
+    return request({
+      url: `/api/order/cancel?orderNo=${orderNo}&cancelReason=${encodeURIComponent(cancelReason || '')}`,
+      method: 'PUT',
+    })
+  },
+
+  /**
+   * 模拟支付 PUT /api/order/pay/success
+   * 后端 /api/pay/wxpay 只是个空壳（打一行日志就返回），真正改状态的是这个接口，
+   * 所以前端只调它，按钮文案也如实写「模拟支付」。
+   */
+  paySuccess({ orderNo }) {
+    return request({
+      url: `/api/order/pay/success?orderNo=${orderNo}`,
+      method: 'PUT',
+    })
   },
 }

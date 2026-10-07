@@ -289,7 +289,10 @@ export default {
 				uni.showToast({ title: '请先选择商品', icon: 'none' })
 				return
 			}
-			uni.showToast({ title: '结算功能开发中', icon: 'none' })
+			// 确认订单页自己去拉购物车、按这些行 id 挑商品，
+			// 不把商品数据塞进 URL（太长，而且可能已经过期）
+			const ids = this.checkedItems.map((item) => item.id).join(',')
+			uni.navigateTo({ url: `/pages/order/confirm?cartIds=${ids}` })
 		},
 		goShopping() {
 			uni.reLaunch({ url: '/pages/index/index' })

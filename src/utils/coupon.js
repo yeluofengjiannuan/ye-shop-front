@@ -19,6 +19,11 @@ const SCOPE_TEXT = {
 	3: '指定分类可用',
 }
 
+/** 使用范围文案。CouponUserVO 里没有 useScope，只有活动列表的 Coupon 有 */
+export function scopeTextOf(useScope) {
+	return SCOPE_TEXT[Number(useScope)] || ''
+}
+
 /**
  * 解析后端时间。
  *
@@ -125,7 +130,7 @@ export function normalizeActivity(raw) {
 		...buildAmountParts(coupon),
 		conditionText: buildConditionText(coupon),
 		maxText: buildMaxText(coupon),
-		scopeText: SCOPE_TEXT[Number(coupon.useScope)] || '',
+		scopeText: scopeTextOf(coupon.useScope),
 		validText,
 		perUserQty: Number(coupon.perUserQty) || 0,
 		remaining,
