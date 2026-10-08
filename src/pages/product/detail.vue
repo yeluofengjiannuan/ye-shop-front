@@ -92,6 +92,11 @@
 					>{{ collected ? '已收藏' : '收藏' }}</text
 				>
 			</view>
+			<!-- 管理员自己就是客服，给他看这个入口只会点出一条"自己和自己"的会话 -->
+			<view v-if="!isAdmin" class="actionbar__service" @click="onService">
+				<view class="icon-service"></view>
+				<text class="actionbar__service-label">客服</text>
+			</view>
 			<view class="actionbar__btn" @click="addToCart">
 				<text class="actionbar__btn-text">加入购物车</text>
 			</view>
@@ -107,6 +112,7 @@ import { productApi, userApi } from '@/utils/api'
 import { useUserStore } from '@/store/modules/user'
 import { useCartStore } from '@/store/modules/cart'
 import { resolveImage, formatPrice } from '@/utils/productImage'
+import { SERVICE_ADMIN_ID } from '@/utils/chat'
 
 export default {
 	components: { PageHeader },
@@ -126,6 +132,9 @@ export default {
 		}
 	},
 	computed: {
+		isAdmin() {
+			return useUserStore().isAdmin
+		},
 		/** 轮播图：优先用 imageUrls，没有就退回单张 image */
 		gallery() {
 			if (!this.detail) return []
@@ -218,6 +227,25 @@ export default {
 		formatPrice,
 		onImageError(key) {
 			if (this.failedImageKeys.indexOf(key) === -1) this.failedImageKeys.push(key)
+		},
+		onService() {
+			/*
+			 * 指向固定客服。
+			 * 后端 product 表上没有任何 seller/owner 字段，也没有关联表，
+			 * 所以"这个商品属于哪个卖家"在当前 schema 里查不到，只能都找同一个客服。
+			 *
+			 * 把 productId / productName 带过去：聊天页据此在输入框旁边给一个
+			 * 「发送商品」按钮，点了才把商品作为卡片发给客服。
+			 * 名称一起带过去，是为了发消息不依赖商品简介接口成不成功。
+			 */
+			const name = (this.detail && this.detail.name) || ''
+			uni.navigateTo({
+				url:
+					`/pages/chat/room?contactId=${SERVICE_ADMIN_ID}` +
+					`&name=${encodeURIComponent('客服')}` +
+					`&productId=${this.productId}` +
+					`&productName=${encodeURIComponent(name)}`,
+			})
 		},
 		async addToCart() {
 			if (!this.detail || this.adding) return
@@ -449,6 +477,45 @@ page {
 
 .actionbar__collect-label--on {
 	color: #ff6b35;
+}
+
+/* 联系客服：图标 + 文字竖排，和收藏同一风格 */
+.actionbar__service {
+	width: 110rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+/* 用纯 CSS 画一个对话气泡（和页面其他图标一样，不用 emoji/字体图标） */
+.icon-service {
+	position: relative;
+	width: 42rpx;
+	height: 32rpx;
+	box-sizing: border-box;
+	border: 3rpx solid #999999;
+	border-radius: 10rpx;
+}
+
+.icon-service::after {
+	content: '';
+	position: absolute;
+	left: 9rpx;
+	bottom: -12rpx;
+	width: 0;
+	height: 0;
+	border-left: 8rpx solid transparent;
+	border-right: 8rpx solid transparent;
+	border-top: 12rpx solid #999999;
+}
+
+.actionbar__service-label {
+	margin-top: 8rpx;
+	font-size: 20rpx;
+	line-height: 26rpx;
+	color: #999999;
 }
 
 .actionbar__btn {

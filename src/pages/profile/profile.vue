@@ -40,6 +40,18 @@
 			</view>
 		</view>
 
+		<!-- 消息入口 -->
+		<view class="entry" @click="onMessage">
+			<text class="entry__label">{{ userStore.isAdmin ? '客服工作台' : '消息' }}</text>
+			<view class="entry__right">
+				<text v-if="unreadTotal > 0" class="entry__badge">
+					{{ unreadTotal > 99 ? '99+' : unreadTotal }}
+				</text>
+				<text v-else class="entry__value">暂无未读</text>
+				<view class="entry__arrow"></view>
+			</view>
+		</view>
+
 		<!-- 我的订单入口 -->
 		<view class="entry" @click="onOrder">
 			<text class="entry__label">我的订单</text>
@@ -81,6 +93,7 @@
 import PageHeader from '@/components/PageHeader.vue'
 import { useUserStore } from '@/store/modules/user'
 import { userApi, addressApi, couponApi, orderApi } from '@/utils/api'
+import { useChatStore } from '@/store/modules/chat'
 import { BASE_URL } from '@/utils/request'
 
 export default {
@@ -146,15 +159,23 @@ export default {
 			if (this.orderPendingCount > 0) return `${this.orderPendingCount} 笔待付款`
 			return this.orders.length > 0 ? `${this.orders.length} 笔订单` : '暂无订单'
 		},
+		chatStore() {
+			return useChatStore()
+		},
+		unreadTotal() {
+			return this.chatStore.unreadTotal
+		},
 	},
 	onLoad() {
 		this.loadDetail()
 	},
-	// 用 onShow：从地址管理页/领券页/订单页返回时摘要能自动刷新
+	// 用 onShow：从地址管理页/领券页/订单页/聊天页返回时摘要能自动刷新
 	onShow() {
 		this.loadAddresses()
 		this.loadCoupons()
 		this.loadOrders()
+		// 连接由 App.vue 负责建，这里只把未读数拉回来
+		this.chatStore.loadSessions()
 	},
 	methods: {
 		/** 拉取用户详情刷新 store。失败时保留缓存数据，只提示一次 */
@@ -208,6 +229,9 @@ export default {
 		},
 		onOrder() {
 			uni.navigateTo({ url: '/pages/order/list' })
+		},
+		onMessage() {
+			uni.navigateTo({ url: '/pages/chat/list' })
 		},
 		onAddress() {
 			uni.navigateTo({ url: '/pages/address/list' })
@@ -350,6 +374,20 @@ page {
 .entry__value--accent {
 	color: #ff6b35;
 	font-weight: bold;
+}
+
+/* 未读角标 */
+.entry__badge {
+	min-width: 36rpx;
+	height: 36rpx;
+	padding: 0 10rpx;
+	box-sizing: border-box;
+	border-radius: 18rpx;
+	background-color: #ff6b35;
+	color: #ffffff;
+	font-size: 22rpx;
+	line-height: 36rpx;
+	text-align: center;
 }
 
 /* 右向箭头（纯 CSS，与返回箭头同一风格，只是转个方向） */

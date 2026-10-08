@@ -24,6 +24,15 @@ export const userApi = {
   },
 
   /**
+   * 用户角色与权限 GET /api/user/role/permission/get
+   * 返回 SysUser，角色在 sysRoleList 里、权限在 sysPermissionList 里。
+   * 普通用户没有角色时这两个字段**整个不出现**（Jackson NON_NULL），取值要兜。
+   */
+  getRolePermission() {
+    return request({ url: '/api/user/role/permission/get', method: 'GET' })
+  },
+
+  /**
    * 收藏商品 POST /api/user/collect/add
    * 参数在后端是 in: query，所以直接拼进 URL。
    * 不能走 data —— POST 的 data 会变成 JSON body，后端读不到。
@@ -168,6 +177,23 @@ export const productApi = {
       method: 'GET',
       data: { productId, specId },
     })
+  },
+
+  /**
+   * 批量查商品简介 GET /api/product/brief/list
+   * 返回 [{ id, categoryId, name, image, sellPoint, price, status, viewCount, salesCount }]
+   *
+   * productIds 是**必填**的，逗号分隔；不传是 HTTP 400（不是静默空列表），
+   * 所以空数组时直接返回，别发请求。
+   */
+  async getBriefList({ productIds }) {
+    const ids = (productIds || []).filter((id) => id != null)
+    if (!ids.length) return []
+    const data = await request({
+      url: `/api/product/brief/list?productIds=${ids.join(',')}`,
+      method: 'GET',
+    })
+    return Array.isArray(data) ? data : []
   },
 }
 
@@ -316,6 +342,7 @@ export const orderApi = {
     return request({ url: '/api/order/detail', method: 'GET', data: { orderNo } })
   },
 
+
   /** 取消订单 PUT /api/order/cancel，只有待支付状态能取消 */
   cancel({ orderNo, cancelReason }) {
     return request({
@@ -334,5 +361,41 @@ export const orderApi = {
       url: `/api/order/pay/success?orderNo=${orderNo}`,
       method: 'PUT',
     })
+  },
+}
+
+/**
+ * 聊天
+ *
+ * 收发消息走的是 Netty WebSocket（:8888/ws/chat），不在这个文件里 ——
+ * 见 utils/chat.js 和 store/modules/chat.js。
+ * 这里只有三个 HTTP 接口：会话列表、历史消息、清除未读。
+ */
+export const chatApi = {
+  /** 会话列表 GET /api/chat/sessions */
+  async getSessions() {
+    const data = await request({ url: '/api/chat/sessions', method: 'GET' })
+    return Array.isArray(data) ? data : []
+  },
+
+  /**
+   * 与某人的历史消息 GET /api/chat/history/{contactId}
+   * 返回 { list, total, pageNum, pageSize }，**list 按 create_time 倒序**，前端要反转
+   */
+  async getHistory({ contactId, page = 1, size = 20 }) {
+    const data = await request({
+      url: `/api/chat/history/${contactId}`,
+      method: 'GET',
+      data: { page, size },
+    })
+    return {
+      list: (data && data.list) || [],
+      total: Number((data && data.total) || 0),
+    }
+  },
+
+  /** 清除某会话未读 POST /api/chat/clearUnread/{contactId} */
+  clearUnread({ contactId }) {
+    return request({ url: `/api/chat/clearUnread/${contactId}`, method: 'POST' })
   },
 }

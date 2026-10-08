@@ -1,6 +1,7 @@
 <script>
 import { useUserStore } from '@/store/modules/user'
 import { useCartStore } from '@/store/modules/cart'
+import { useChatStore } from '@/store/modules/chat'
 
 const LOGIN_PAGE = '/pages/login/login'
 // 未登录也能访问的页面白名单
@@ -18,6 +19,7 @@ export default {
 		console.log('App Launch')
 		const userStore = useUserStore()
 		const cartStore = useCartStore()
+		const chatStore = useChatStore()
 
 		// 1) 冷启动兜底：没有 token 直接送登录页
 		if (!userStore.isLogin) {
@@ -25,12 +27,23 @@ export default {
 		} else {
 			// 已登录：先把购物车拉起来，导航栏角标才不会一进来就是 0
 			cartStore.load()
+			// 聊天连接也建起来，别等到进消息页才连（那样收不到任何推送）
+			chatStore.connect()
+			// 角色决定消息入口显示成「消息」还是「客服工作台」，只在没缓存时查一次
+			if (!userStore.sysRoleList.length) userStore.loadRoles()
 		}
 
 		// user.js 的 setUserInfo / logout 里已经 emit 了这两个事件，
-		// 购物车跟着登录态走，避免换账号后角标串号
-		uni.$on('userLogin', () => cartStore.load())
-		uni.$on('userLogout', () => cartStore.reset())
+		// 购物车和聊天跟着登录态走，避免换账号后角标串号、连接串人
+		uni.$on('userLogin', () => {
+			cartStore.load()
+			chatStore.connect()
+			userStore.loadRoles()
+		})
+		uni.$on('userLogout', () => {
+			cartStore.reset()
+			chatStore.reset()
+		})
 
 		// 2) 路由拦截。只做 onLaunch 只能拦住冷启动，
 		//    页面内的 navigateTo/redirectTo 等必须在拦截器里才能兜住。
