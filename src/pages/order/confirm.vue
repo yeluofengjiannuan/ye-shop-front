@@ -231,7 +231,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import { cartApi, addressApi, couponApi, orderApi, productApi } from '@/utils/api'
 import { resolveImage, formatPrice } from '@/utils/productImage'
 import { joinAddress } from '@/utils/region'
-import { buildCouponOptions } from '@/utils/order'
+import { buildCouponOptions, ORDER_CODE } from '@/utils/order'
 
 export default {
 	components: { PageHeader },
@@ -486,10 +486,13 @@ export default {
 					uni.redirectTo({ url: `/pages/order/detail?orderNo=${orderNo}` })
 				}, 500)
 			} catch (err) {
-				const message = (err && err.message) || '下单失败'
-				uni.showToast({ title: message, icon: 'none' })
-				// 后端的价格校验是"差一分就拒"，这时候把现价刷回来让用户重试
-				if (message.indexOf('价格已变动') !== -1) {
+				uni.showToast({ title: (err && err.message) || '下单失败', icon: 'none' })
+				/*
+				 * 后端价格校验是"差一分就拒"（code 6015），这时把现价刷回来让用户重试。
+				 * 按 code 判断而不是匹配文案 —— 文案改了好几次了（"商品【x】价格已变动"
+				 * 之类的），code 是稳定的。
+				 */
+				if (err && err.code === ORDER_CODE.PRICE_CHANGED) {
 					await this.refreshPrices()
 				}
 			} finally {

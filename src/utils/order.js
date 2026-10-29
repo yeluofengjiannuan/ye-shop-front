@@ -8,6 +8,16 @@
 import { normalizeMine, scopeTextOf } from './coupon'
 
 /**
+ * 后端 ResultCode 里前端真正需要的业务码。
+ * 只放"要拿来做分支判断"的；纯展示的一律直接用 message，
+ * 别把展示文案抄成常量（文案会改，code 不会）。
+ */
+export const ORDER_CODE = {
+	/** 6015 商品价格已变动 —— 下单失败时要自动把现价刷回来让用户重试 */
+	PRICE_CHANGED: 6015,
+}
+
+/**
  * 订单列表的 5 个 tab，对应后端 OrderPageEnum.pageKey。
  * 只能取这几个值 —— 传别的后端抛 IllegalArgumentException，直接 HTTP 500（不是 400）。
  */

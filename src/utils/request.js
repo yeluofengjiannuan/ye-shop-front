@@ -103,8 +103,21 @@ async function handle401(options) {
 }
 
 /**
+ * 构造带业务 code 的 Error。
+ *
+ * 后端改用了统一异常体系：业务错误是 HTTP 200 + `{success:false, code: 3001/5006/6015…}`，
+ * 参数错误是 HTTP 400 + code 1001，系统异常是 HTTP 500 + code 9001。
+ * code 是稳定的、message 是给人看的 —— 需要分支的地方按 code 判断，别去匹配文案。
+ */
+function buildError(body, fallbackMessage) {
+  const err = new Error((body && body.message) || fallbackMessage)
+  err.code = body && body.code
+  return err
+}
+
+/**
  * 业务请求入口
- * 成功时直接返回后端的 data 字段，失败时抛出 Error(message)
+ * 成功时直接返回后端的 data 字段，失败时抛出 Error(message)，并把业务 code 挂在 err.code 上
  */
 export async function request(options) {
   const res = await rawRequest(options)
@@ -116,7 +129,9 @@ export async function request(options) {
   }
 
   if (statusCode < 200 || statusCode >= 300) {
-    throw new Error((body && body.message) || `请求失败（HTTP ${statusCode}）`)
+    const err = buildError(body, `请求失败（HTTP ${statusCode}）`)
+    err.httpStatus = statusCode
+    throw err
   }
 
   // 成功与否以后端的 success 字段为准，不看 code
@@ -124,5 +139,5 @@ export async function request(options) {
     return body.data
   }
 
-  throw new Error((body && body.message) || '请求失败')
+  throw buildError(body, '请求失败')
 }
